@@ -135,8 +135,8 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
         data =  Base64.decode64(data) if @base64 == true
         
         if !@iv_random_length.nil? 
-        	@random_iv = data.byteslice(0,16)
-        	data = data.byteslice(16..data.length)
+        	@random_iv = data.byteslice(0,@iv_random_length)
+        	data = data.byteslice(@iv_random_length..data.length)
         end
         
       end
