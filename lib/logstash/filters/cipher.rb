@@ -13,21 +13,21 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # The field to perform filter
   #
   # Example, to use the @message field (default) :
-  #
+  # [source,ruby]
   #     filter { cipher { source => "message" } }
   config :source, :validate => :string, :default => "message"
 
   # The name of the container to put the result
   #
   # Example, to place the result into crypt :
-  #
+  # [source,ruby]
   #     filter { cipher { target => "crypt" } }
   config :target, :validate => :string, :default => "message"
 
-  # Do we have to perform a base64 decode or encode?
+  # Do we have to perform a `base64` decode or encode?
   #
-  # If we are decrypting, base64 decode will be done before.
-  # If we are encrypting, base64 will be done after.
+  # If we are decrypting, `base64` decode will be done before.
+  # If we are encrypting, `base64` will be done after.
   #
   config :base64, :validate => :boolean, :default => true
 
@@ -40,6 +40,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # padding, don't set this parameter
   #
   # Example, for AES-256, we must have 32 char long key
+  # [source,ruby]
   #     filter { cipher { key_size => 32 }
   #
   config :key_size, :validate => :number, :default => 32
@@ -50,7 +51,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # The cipher algorythm
   #
   # A list of supported algorithms can be obtained by
-  #
+  # [source,ruby]
   #     puts OpenSSL::Cipher.ciphers
   config :algorithm, :validate => :string, :required => true
 
@@ -72,6 +73,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # We are using Openssl jRuby which uses default padding to PKCS5Padding
   # If you want to change it, set this parameter. If you want to disable
   # it, Set this parameter to 0
+  # [source,ruby]
   #     filter { cipher { padding => 0 }}
   config :cipher_padding, :validate => :string
 
