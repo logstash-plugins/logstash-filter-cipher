@@ -8,7 +8,6 @@ require "logstash/namespace"
 #
 class LogStash::Filters::Cipher < LogStash::Filters::Base
   config_name "cipher"
-  milestone 1
 
   # The field to perform filter
   #
