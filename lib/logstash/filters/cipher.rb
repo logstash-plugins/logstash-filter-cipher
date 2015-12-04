@@ -133,7 +133,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
 
   def filter(event)
-    return unless filter?(event)
+    
 
 
     #If decrypt or encrypt fails, we keep it it intact.
