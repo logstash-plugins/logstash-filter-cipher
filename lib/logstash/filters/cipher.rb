@@ -147,7 +147,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
       #@logger.debug("Event to filter", :event => event)
       data = event[@source]
       if @mode == "decrypt"
-        data =  Base64.decode64(data) if @base64 == true
+        data =  Base64.strict_decode64(data) if @base64 == true
 
         if !@iv_random_length.nil?
           @random_iv = data.byteslice(0,@iv_random_length)
@@ -175,7 +175,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
           result = @random_iv + result
         end
 
-        result =  Base64.encode64(result).encode("utf-8") if @base64 == true
+        result =  Base64.strict_encode64(result).encode("utf-8") if @base64 == true
       end
 
     rescue => e
