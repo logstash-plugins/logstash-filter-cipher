@@ -175,7 +175,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
           result = @random_iv + result
         end
 
-        result =  Base64.encode64(result) if @base64 == true
+        result =  Base64.encode64(result).encode("utf-8") if @base64 == true
       end
 
     rescue => e
@@ -186,6 +186,8 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
     else
       @total_cipher_uses += 1
+
+      result = result.force_encoding("utf-8") if @mode == "decrypt"
 
       event[@target]= result
 
