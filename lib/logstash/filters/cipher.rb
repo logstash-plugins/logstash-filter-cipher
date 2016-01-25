@@ -92,7 +92,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   #     filter { cipher { iv => "1234567890123456" }}
   #
   # Deprecated: Please use `iv_random_length` instead
-  config :iv, :validate => :string
+  config :iv, :validate => :string, :deprecated => "Please use 'iv_random_length'"
 
   # Force an random IV to be used per encryption invocation and specify
   # the length of the random IV that will be generated via:
