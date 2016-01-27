@@ -32,23 +32,31 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   config :base64, :validate => :boolean, :default => true
 
   # The key to use
+  #
+  # NOTE: If you encounter an error message at runtime containing the following:
+  #
+  # "java.security.InvalidKeyException: Illegal key size: possibly you need to install 
+  # Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files for your JRE"
+  #
+  # Please read the following: https://github.com/jruby/jruby/wiki/UnlimitedStrengthCrypto
+  #
   config :key, :validate => :string
 
   # The key size to pad
   #
-  # It depends of the cipher algorythm.I your key don't need
+  # It depends of the cipher algorithm. If your key doesn't need
   # padding, don't set this parameter
   #
-  # Example, for AES-256, we must have 32 char long key
+  # Example, for AES-128, we must have 16 char long key. AES-256 = 32 chars 
   # [source,ruby]
-  #     filter { cipher { key_size => 32 }
+  #     filter { cipher { key_size => 16 }
   #
-  config :key_size, :validate => :number, :default => 32
+  config :key_size, :validate => :number, :default => 16
 
   # The character used to pad the key
   config :key_pad, :default => "\0"
 
-  # The cipher algorythm
+  # The cipher algorithm
   #
   # A list of supported algorithms can be obtained by
   # [source,ruby]
@@ -60,7 +68,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # Valid values are encrypt or decrypt
   config :mode, :validate => :string, :required => true
 
-  # Cypher padding to use. Enables or disables padding.
+  # Cipher padding to use. Enables or disables padding.
   #
   # By default encryption operations are padded using standard block padding
   # and the padding is checked and removed when decrypting. If the pad
