@@ -36,18 +36,18 @@
         results.select { |e| !e.cancelled? }
       end
 
-      describe 'single event, encrypt/decrypt aes-256-cbc, 16b RANDOM IV, 32b key, b64 encode' do
+      describe 'single event, encrypt/decrypt aes-128-cbc, 16b RANDOM IV, 16b key, b64 encode' do
 
         let(:config) do
           <<-CONFIG
     filter {
 
         cipher {
-            algorithm => "aes-256-cbc"
+            algorithm => "aes-128-cbc"
             cipher_padding => 1
             iv_random_length => 16
-            key => "12345678901234567890123456789012"
-            key_size => 32
+            key => "1234567890123456"
+            key_size => 16
             mode => "encrypt"
             source => "message"
             target => "message_crypted"
@@ -56,11 +56,11 @@
         }
 
         cipher {
-            algorithm => "aes-256-cbc"
+            algorithm => "aes-128-cbc"
             cipher_padding => 1
             iv_random_length => 16
-            key => "12345678901234567890123456789012"
-            key_size => 32
+            key => "1234567890123456"
+            key_size => 16
             mode => "decrypt"
             source => "message_crypted"
             target => "message_decrypted"
@@ -89,18 +89,18 @@
       end
 
 
-      describe 'single event, encrypt/decrypt aes-256-cbc, 16b STATIC IV, 32b key, b64 encode' do
+      describe 'single event, encrypt/decrypt aes-128-cbc, 16b STATIC IV, 16b key, b64 encode' do
 
         let(:config) do
           <<-CONFIG
     filter {
 
         cipher {
-            algorithm => "aes-256-cbc"
+            algorithm => "aes-128-cbc"
             cipher_padding => 1
             iv => "1234567890123456"
-            key => "12345678901234567890123456789012"
-            key_size => 32
+            key => "1234567890123456"
+            key_size => 16
             mode => "encrypt"
             source => "message"
             target => "message_crypted"
@@ -109,11 +109,11 @@
         }
 
         cipher {
-            algorithm => "aes-256-cbc"
+            algorithm => "aes-128-cbc"
             cipher_padding => 1
             iv => "1234567890123456"
-            key => "12345678901234567890123456789012"
-            key_size => 32
+            key => "1234567890123456"
+            key_size => 16
             mode => "decrypt"
             source => "message_crypted"
             target => "message_decrypted"
@@ -142,7 +142,7 @@
       end
 
 
-      describe '1000 events, 11 re-use, encrypt/decrypt aes-256-cbc, 16b RANDOM IV, 32b key, b64 encode' do
+      describe '1000 events, 11 re-use, encrypt/decrypt aes-128-cbc, 16b RANDOM IV, 16b key, b64 encode' do
 
         total_events = 1000
 
@@ -159,11 +159,11 @@
     filter {
 
         cipher {
-            algorithm => "aes-256-cbc"
+            algorithm => "aes-128-cbc"
             cipher_padding => 1
             iv_random_length => 16
-            key => "12345678901234567890123456789012"
-            key_size => 32
+            key => "1234567890123456"
+            key_size => 16
             mode => "encrypt"
             source => "message"
             target => "message_crypted"
@@ -172,11 +172,11 @@
         }
 
         cipher {
-            algorithm => "aes-256-cbc"
+            algorithm => "aes-128-cbc"
             cipher_padding => 1
             iv_random_length => 16
-            key => "12345678901234567890123456789012"
-            key_size => 32
+            key => "1234567890123456"
+            key_size => 16
             mode => "decrypt"
             source => "message_crypted"
             target => "message_decrypted"
