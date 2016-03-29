@@ -2,6 +2,8 @@
 require "logstash/filters/base"
 require "logstash/namespace"
 require "openssl"
+require "thread"
+
 
 
 # This filter parses a source and apply a cipher or decipher before
@@ -136,79 +138,83 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
   def register
     require 'base64' if @base64
-    init_cipher
+    @semaphore = Mutex.new
+    @semaphore.synchronize {
+      init_cipher
+    }
   end # def register
 
 
   def filter(event)
     
-
-
-    #If decrypt or encrypt fails, we keep it it intact.
-    begin
-
-      if (event[@source].nil? || event[@source].empty?)
-        @logger.debug("Event to filter, event 'source' field: " + @source + " was null(nil) or blank, doing nothing")
-        return
-      end
-
-      #@logger.debug("Event to filter", :event => event)
-      data = event[@source]
-      if @mode == "decrypt"
-        data =  Base64.strict_decode64(data) if @base64 == true
-
+    @semaphore.synchronize {
+  
+      #If decrypt or encrypt fails, we keep it it intact.
+      begin
+  
+        if (event[@source].nil? || event[@source].empty?)
+          @logger.debug("Event to filter, event 'source' field: " + @source + " was null(nil) or blank, doing nothing")
+          return
+        end
+  
+        #@logger.debug("Event to filter", :event => event)
+        data = event[@source]
+        if @mode == "decrypt"
+          data =  Base64.strict_decode64(data) if @base64 == true
+  
+          if !@iv_random_length.nil?
+            @random_iv = data.byteslice(0,@iv_random_length)
+            data = data.byteslice(@iv_random_length..data.length)
+          end
+  
+        end
+  
+        if !@iv_random_length.nil? and @mode == "encrypt"
+          @random_iv = OpenSSL::Random.random_bytes(@iv_random_length)
+        end
+  
+        # if iv_random_length is specified, generate a new one
+        # and force the cipher's IV = to the random value
         if !@iv_random_length.nil?
-          @random_iv = data.byteslice(0,@iv_random_length)
-          data = data.byteslice(@iv_random_length..data.length)
+          @cipher.iv = @random_iv
         end
-
-      end
-
-      if !@iv_random_length.nil? and @mode == "encrypt"
-        @random_iv = OpenSSL::Random.random_bytes(@iv_random_length)
-      end
-
-      # if iv_random_length is specified, generate a new one
-      # and force the cipher's IV = to the random value
-      if !@iv_random_length.nil?
-        @cipher.iv = @random_iv
-      end
-
-      result = @cipher.update(data) + @cipher.final
-
-      if @mode == "encrypt"
-
-        # if we have a random_iv, prepend that to the crypted result
-        if !@random_iv.nil?
-          result = @random_iv + result
+  
+        result = @cipher.update(data) + @cipher.final
+  
+        if @mode == "encrypt"
+  
+          # if we have a random_iv, prepend that to the crypted result
+          if !@random_iv.nil?
+            result = @random_iv + result
+          end
+  
+          result =  Base64.strict_encode64(result).encode("utf-8") if @base64 == true
         end
-
-        result =  Base64.strict_encode64(result).encode("utf-8") if @base64 == true
-      end
-
-    rescue => e
-      @logger.warn("Exception catch on cipher filter", :event => event, :error => e)
-
-      # force a re-initialize on error to be safe
-      init_cipher
-
-    else
-      @total_cipher_uses += 1
-
-      result = result.force_encoding("utf-8") if @mode == "decrypt"
-
-      event[@target]= result
-
-      #Is it necessary to add 'if !result.nil?' ? exception have been already catched.
-      #In doubt, I keep it.
-      filter_matched(event) if !result.nil?
-
-      if !@max_cipher_reuse.nil? and @total_cipher_uses >= @max_cipher_reuse
-        @logger.debug("max_cipher_reuse["+@max_cipher_reuse.to_s+"] reached, total_cipher_uses = "+@total_cipher_uses.to_s)
+  
+      rescue => e
+        @logger.warn("Exception catch on cipher filter", :event => event, :error => e)
+  
+        # force a re-initialize on error to be safe
         init_cipher
+  
+      else
+        @total_cipher_uses += 1
+  
+        result = result.force_encoding("utf-8") if @mode == "decrypt"
+  
+        event[@target]= result
+  
+        #Is it necessary to add 'if !result.nil?' ? exception have been already catched.
+        #In doubt, I keep it.
+        filter_matched(event) if !result.nil?
+  
+        if !@max_cipher_reuse.nil? and @total_cipher_uses >= @max_cipher_reuse
+          @logger.debug("max_cipher_reuse["+@max_cipher_reuse.to_s+"] reached, total_cipher_uses = "+@total_cipher_uses.to_s)
+          init_cipher
+        end
+  
       end
-
-    end
+    }
   end # def filter
 
   def init_cipher
