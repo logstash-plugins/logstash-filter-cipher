@@ -190,7 +190,6 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
         #Is it necessary to add 'if !result.nil?' ? exception have been already catched.
         #In doubt, I keep it.
-        filter_matched(event) if !result.nil?
 
 
       end
@@ -200,6 +199,8 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
       # force a re-initialize on error to be safe
       init_cipher
+    else
+      filter_matched(event)
     end
   end # def filter
 
@@ -240,7 +241,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
     @cipher.padding = @cipher_padding if @cipher_padding
 
-    @logger.debug("Cipher initialisation done", :mode => @mode, :key => @key, :iv => @iv, :iv_random => @iv_random, :cipher_padding => @cipher_padding)
+    @logger.debug("Cipher initialisation done", :mode => @mode, :key => @key, :iv => @iv, :iv_random_length => @iv_random_length, :cipher_padding => @cipher_padding)
   end # def init_cipher
 
 
