@@ -15,14 +15,12 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # Example, to use the @message field (default) :
   # [source,ruby]
   #     filter { cipher { source => "message" } }
-  config :source, :validate => :string, :default => "message"
 
   # The name of the container to put the result
   #
   # Example, to place the result into crypt :
   # [source,ruby]
   #     filter { cipher { target => "crypt" } }
-  config :target, :validate => :string, :default => "message"
 
   # Do we have to perform a `base64` decode or encode?
   #
@@ -132,7 +130,8 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # instance and max_cipher_reuse = 1 by default
   # [source,ruby]
   #     filter { cipher { max_cipher_reuse => 1000 }}
-  config :max_cipher_reuse, :validate => :number, :default => 1
+
+  config :whitelist_fields, :validate => :array, :required => true
 
   def register
     require 'base64' if @base64
@@ -146,44 +145,53 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
     #If decrypt or encrypt fails, we keep it it intact.
     begin
+      hash = event.to_hash
+      hash.each_key do |field|
+        next unless !@whitelist_fields.include?(field)
 
-      if (event[@source].nil? || event[@source].empty?)
-        @logger.debug("Event to filter, event 'source' field: " + @source + " was null(nil) or blank, doing nothing")
-        return
-      end
+        # @logger.debug("Encrypting field", :field => field)
+        data = event[field]
+        if @mode == "decrypt"
+          data =  Base64.strict_decode64(data) if @base64 == true
 
-      #@logger.debug("Event to filter", :event => event)
-      data = event[@source]
-      if @mode == "decrypt"
-        data =  Base64.strict_decode64(data) if @base64 == true
+          if !@iv_random_length.nil?
+            @random_iv = data.byteslice(0,@iv_random_length)
+            data = data.byteslice(@iv_random_length..data.length)
+          end
 
+        end
+
+        if !@iv_random_length.nil? and @mode == "encrypt"
+          @random_iv = OpenSSL::Random.random_bytes(@iv_random_length)
+        end
+
+        # if iv_random_length is specified, generate a new one
+        # and force the cipher's IV = to the random value
         if !@iv_random_length.nil?
-          @random_iv = data.byteslice(0,@iv_random_length)
-          data = data.byteslice(@iv_random_length..data.length)
+          @cipher.iv = @random_iv
         end
 
-      end
+        result = @cipher.update(data) + @cipher.final
 
-      if !@iv_random_length.nil? and @mode == "encrypt"
-        @random_iv = OpenSSL::Random.random_bytes(@iv_random_length)
-      end
+        if @mode == "encrypt"
 
-      # if iv_random_length is specified, generate a new one
-      # and force the cipher's IV = to the random value
-      if !@iv_random_length.nil?
-        @cipher.iv = @random_iv
-      end
+          # if we have a random_iv, prepend that to the crypted result
+          if !@random_iv.nil?
+            result = @random_iv + result
+          end
 
-      result = @cipher.update(data) + @cipher.final
-
-      if @mode == "encrypt"
-
-        # if we have a random_iv, prepend that to the crypted result
-        if !@random_iv.nil?
-          result = @random_iv + result
+          result =  Base64.strict_encode64(result).encode("utf-8") if @base64 == true
         end
 
-        result =  Base64.strict_encode64(result).encode("utf-8") if @base64 == true
+
+        result = result.force_encoding("utf-8") if @mode == "decrypt"
+
+        event[field]= result
+
+        #Is it necessary to add 'if !result.nil?' ? exception have been already catched.
+        #In doubt, I keep it.
+
+
       end
 
     rescue => e
@@ -191,23 +199,8 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
       # force a re-initialize on error to be safe
       init_cipher
-
     else
-      @total_cipher_uses += 1
-
-      result = result.force_encoding("utf-8") if @mode == "decrypt"
-
-      event[@target]= result
-
-      #Is it necessary to add 'if !result.nil?' ? exception have been already catched.
-      #In doubt, I keep it.
-      filter_matched(event) if !result.nil?
-
-      if !@max_cipher_reuse.nil? and @total_cipher_uses >= @max_cipher_reuse
-        @logger.debug("max_cipher_reuse["+@max_cipher_reuse.to_s+"] reached, total_cipher_uses = "+@total_cipher_uses.to_s)
-        init_cipher
-      end
-
+      filter_matched(event)
     end
   end # def filter
 
@@ -220,7 +213,6 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
     @cipher = OpenSSL::Cipher.new(@algorithm)
 
-    @total_cipher_uses = 0
 
     if @mode == "encrypt"
       @cipher.encrypt
@@ -249,7 +241,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
     @cipher.padding = @cipher_padding if @cipher_padding
 
-    @logger.debug("Cipher initialisation done", :mode => @mode, :key => @key, :iv => @iv, :iv_random => @iv_random, :cipher_padding => @cipher_padding)
+    @logger.debug("Cipher initialisation done", :mode => @mode, :key => @key, :iv => @iv, :iv_random_length => @iv_random_length, :cipher_padding => @cipher_padding)
   end # def init_cipher
 
 
