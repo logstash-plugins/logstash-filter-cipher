@@ -1,7 +1,10 @@
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y libxml2-dev
 sudo: false
 language: ruby
 cache: bundler
 rvm:
   - jruby-1.7.23
-script: 
+script:
   - bundle exec rspec spec
