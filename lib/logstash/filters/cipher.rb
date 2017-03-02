@@ -35,7 +35,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   #
   # NOTE: If you encounter an error message at runtime containing the following:
   #
-  # "java.security.InvalidKeyException: Illegal key size: possibly you need to install 
+  # "java.security.InvalidKeyException: Illegal key size: possibly you need to install
   # Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files for your JRE"
   #
   # Please read the following: https://github.com/jruby/jruby/wiki/UnlimitedStrengthCrypto
@@ -47,7 +47,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # It depends of the cipher algorithm. If your key doesn't need
   # padding, don't set this parameter
   #
-  # Example, for AES-128, we must have 16 char long key. AES-256 = 32 chars 
+  # Example, for AES-128, we must have 16 char long key. AES-256 = 32 chars
   # [source,ruby]
   #     filter { cipher { key_size => 16 }
   #
@@ -141,19 +141,19 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
 
   def filter(event)
-    
+
 
 
     #If decrypt or encrypt fails, we keep it it intact.
     begin
 
-      if (event[@source].nil? || event[@source].empty?)
+      if (event.get(@source).nil? || event.get(@source).empty?)
         @logger.debug("Event to filter, event 'source' field: " + @source + " was null(nil) or blank, doing nothing")
         return
       end
 
       #@logger.debug("Event to filter", :event => event)
-      data = event[@source]
+      data = event.get(@source)
       if @mode == "decrypt"
         data =  Base64.strict_decode64(data) if @base64 == true
 
@@ -197,7 +197,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
       result = result.force_encoding("utf-8") if @mode == "decrypt"
 
-      event[@target]= result
+      event.set(@target, result)
 
       #Is it necessary to add 'if !result.nil?' ? exception have been already catched.
       #In doubt, I keep it.
