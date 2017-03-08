@@ -7,7 +7,7 @@ require "thread"
 
 # This filter parses a source and apply a cipher or decipher before
 # storing it in the target.
-#
+
 class LogStash::Filters::Cipher < LogStash::Filters::Base
   config_name "cipher"
 
@@ -143,7 +143,6 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
      }
   end # def register
 
-
   def filter(event)
 
 @semaphore.synchronize {
@@ -256,6 +255,5 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
     @logger.debug("Cipher initialisation done", :mode => @mode, :key => @key, :iv => @iv, :iv_random => @iv_random, :cipher_padding => @cipher_padding)
   end # def init_cipher
-
 
 end # class LogStash::Filters::Cipher
