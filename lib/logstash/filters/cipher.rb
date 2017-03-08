@@ -2,6 +2,7 @@
 require "logstash/filters/base"
 require "logstash/namespace"
 require "openssl"
+require "thread"
 
 
 # This filter parses a source and apply a cipher or decipher before
@@ -136,13 +137,16 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
   def register
     require 'base64' if @base64
-    init_cipher
+    @semaphore = Mutex.new
+     @semaphore.synchronize {
+       init_cipher
+     }
   end # def register
 
 
   def filter(event)
 
-
+@semaphore.synchronize {
 
     #If decrypt or encrypt fails, we keep it it intact.
     begin
@@ -209,6 +213,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
       end
 
     end
+  }
   end # def filter
 
   def init_cipher
