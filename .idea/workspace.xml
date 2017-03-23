@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="61e5f440-a5ba-41b7-888c-aaaae6d188ff" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/lib/logstash/filters/cipher.rb" afterPath="$PROJECT_DIR$/lib/logstash/filters/cipher.rb" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -21,9 +20,11 @@
       <file leaf-file-name="cipher.rb" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/lib/logstash/filters/cipher.rb">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="612">
-              <caret line="229" column="48" lean-forward="false" selection-start-line="229" selection-start-column="48" selection-end-line="229" selection-end-column="48" />
-              <folding />
+            <state relative-caret-position="450">
+              <caret line="271" column="0" lean-forward="true" selection-start-line="271" selection-start-column="0" selection-end-line="271" selection-end-column="0" />
+              <folding>
+                <element signature="e#5565#7579#0" expanded="false" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -326,12 +327,12 @@
       <option name="presentableId" value="Default" />
       <updated>1490195038310</updated>
       <workItem from="1490195047625" duration="9726000" />
-      <workItem from="1490206014574" duration="23175000" />
+      <workItem from="1490206014574" duration="26145000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="32901000" />
+    <option name="totallyTimeSpent" value="35871000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="54" y="-11" width="1867" height="1092" extended-state="6" />
@@ -372,7 +373,9 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
+          <folding>
+            <element signature="e#5565#7579#0" expanded="false" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -411,9 +414,11 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/lib/logstash/filters/cipher.rb">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="612">
-          <caret line="229" column="48" lean-forward="false" selection-start-line="229" selection-start-column="48" selection-end-line="229" selection-end-column="48" />
-          <folding />
+        <state relative-caret-position="450">
+          <caret line="271" column="0" lean-forward="true" selection-start-line="271" selection-start-column="0" selection-end-line="271" selection-end-column="0" />
+          <folding>
+            <element signature="e#5565#7579#0" expanded="false" />
+          </folding>
         </state>
       </provider>
     </entry>

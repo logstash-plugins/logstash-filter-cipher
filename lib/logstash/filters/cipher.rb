@@ -20,6 +20,15 @@ require "concurrent"
 class LogStash::Filters::Cipher < LogStash::Filters::Base
   config_name "cipher"
 
+
+
+  #the field to perform the partial encryption
+  config :partial_encryption, :validate => :boolean, :default => false
+
+  #The parameter that will match the field to crypt based on regex expression
+  config :regex_exp, :validate => :string, :default => ""
+
+  #the field to perform encryptiong everywhere it appears
   config :field_to_crypt, :validate => :string, :default  => ""
   # The field to perform filter
   #
@@ -147,9 +156,8 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
 
   def crypto(event, key, value)
-    printf("sono dentro crypto\n")
-    printf("il value che mi sono portato dal json per la criptazione è : #{value}\n")
-    printf("riesco a vedere event? : #{event.get(@source)}")
+
+
     if (event.get(@source).nil? || event.get(@source).empty?)
       @logger.debug("Event to filter, event 'source' field: " + @source + " was null(nil) or blank, doing nothing")
       return
@@ -178,15 +186,16 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
     result = @cipher.update(data) + @cipher.final
     printf("questo è il result dopo cipher.update + cipher final : #{result}\n")
+
     if @mode == "encrypt"
-      printf("sono in encrypt\n")
+
       # if we have a random_iv, prepend that to the crypted result
       if !@random_iv.nil?
         result = @random_iv + result
       end
-      printf("questo è result prima di fare encode: #{result}\n")
+
       result =  Base64.strict_encode64(result).encode("utf-8") if @base64 == true
-      printf("questo è result se mode == encrypt: #{result}\n")
+
     end
 
   rescue => e
@@ -197,13 +206,11 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
   else
     @total_cipher_uses += 1
-    printf("sono dentro else?\n")
     result = result.force_encoding("utf-8") if @mode == "decrypt"
 
 
     #event.set(key,result)
 
-    printf("ho saltato tutto?")
     #Is it necessary to add 'if !result.nil?' ? exception have been already catched.
     #In doubt, I keep it.
     filter_matched(event) if !result.nil?
@@ -225,12 +232,12 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
           if "#{key}" == "#{@field_to_crypt}"
             printf("the key is #{key}:#{value}\n")
             result = crypto(event,"#{key}","#{value}")
-            #crypto(event,"#{key}","#{value}")
-            #p = Concurrent::Promise.new{10}
-            printf("this is result man: #{result}")
-            myHash.set(key, result )
-            # else
-            #   printf("#{key}!=#{@field_to_crypt}\n")
+            printf("this is result man: #{result}\n")
+            myHash[key] = result
+          end
+          if "#{@partial_encryption}" == true
+            regex = /frggg/
+
           end
     end
   end
@@ -257,16 +264,15 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
     #If decrypt or encrypt fails, we keep it it intact.
     begin
 
-
-
       my_source = event.get(@source)
       parsed = LogStash::Json.load(my_source)
 
-      # puts "Let's talk about #{parsed}.\n"
-      # puts "field to crypt #{@field_to_crypt}\n"
+      message = visit_json(event,nil, parsed)
+      event.set("message", message)
 
 
-      visit_json(event,nil, parsed)
+
+
 
     end
   }
