@@ -224,9 +224,11 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
       value.is_a?(Hash) ? visit_json(event,key, value) :
           if "#{key}" == "#{@field_to_crypt}"
             printf("the key is #{key}:#{value}\n")
-            crypto(event,"#{key}","#{value}")
-            p = Concurrent::Promise.new{10}
-            event.set(value, result )
+            result = crypto(event,"#{key}","#{value}")
+            #crypto(event,"#{key}","#{value}")
+            #p = Concurrent::Promise.new{10}
+            printf("this is result man: #{result}")
+            myHash.set(key, result )
             # else
             #   printf("#{key}!=#{@field_to_crypt}\n")
           end
