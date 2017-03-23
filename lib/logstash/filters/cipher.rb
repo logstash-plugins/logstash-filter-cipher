@@ -1,8 +1,17 @@
-# encoding: utf-8
+# encoding: ASCII-8BIT
 require "logstash/filters/base"
 require "logstash/namespace"
+require "logstash/json"
 require "openssl"
 require "thread"
+require "json"
+require "pry"
+require "ostruct"
+require "concurrent"
+
+
+
+
 
 
 # This filter parses a source and apply a cipher or decipher before
@@ -11,6 +20,7 @@ require "thread"
 class LogStash::Filters::Cipher < LogStash::Filters::Base
   config_name "cipher"
 
+  config :field_to_crypt, :validate => :string, :default  => ""
   # The field to perform filter
   #
   # Example, to use the @message field (default) :
@@ -135,6 +145,96 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   #     filter { cipher { max_cipher_reuse => 1000 }}
   config :max_cipher_reuse, :validate => :number, :default => 1
 
+
+  def crypto(event, key, value)
+    printf("sono dentro crypto\n")
+    printf("il value che mi sono portato dal json per la criptazione è : #{value}\n")
+    printf("riesco a vedere event? : #{event.get(@source)}")
+    if (event.get(@source).nil? || event.get(@source).empty?)
+      @logger.debug("Event to filter, event 'source' field: " + @source + " was null(nil) or blank, doing nothing")
+      return
+    end
+    data = value #cambio la source, cambiarlo ciclicamente
+    printf("data is (deve essere uguale a value) : #{data}\n")
+    if @mode == "decrypt"
+      data =  Base64.strict_decode64(data) if @base64 == true
+
+      if !@iv_random_length.nil?
+        @random_iv = data.byteslice(0,@iv_random_length)
+        data = data.byteslice(@iv_random_length..data.length)
+      end
+
+    end
+
+    if !@iv_random_length.nil? and @mode == "encrypt"
+      @random_iv = OpenSSL::Random.random_bytes(@iv_random_length)
+    end
+
+    # if iv_random_length is specified, generate a new one
+    # and force the cipher's IV = to the random value
+    if !@iv_random_length.nil?
+      @cipher.iv = @random_iv
+    end
+
+    result = @cipher.update(data) + @cipher.final
+    printf("questo è il result dopo cipher.update + cipher final : #{result}\n")
+    if @mode == "encrypt"
+      printf("sono in encrypt\n")
+      # if we have a random_iv, prepend that to the crypted result
+      if !@random_iv.nil?
+        result = @random_iv + result
+      end
+      printf("questo è result prima di fare encode: #{result}\n")
+      result =  Base64.strict_encode64(result).encode("utf-8") if @base64 == true
+      printf("questo è result se mode == encrypt: #{result}\n")
+    end
+
+  rescue => e
+    @logger.warn("Exception catch on cipher filter", :event => event, :error => e)
+
+    # force a re-initialize on error to be safe
+    init_cipher
+
+  else
+    @total_cipher_uses += 1
+    printf("sono dentro else?\n")
+    result = result.force_encoding("utf-8") if @mode == "decrypt"
+
+
+    #event.set(key,result)
+
+    printf("ho saltato tutto?")
+    #Is it necessary to add 'if !result.nil?' ? exception have been already catched.
+    #In doubt, I keep it.
+    filter_matched(event) if !result.nil?
+
+    if !@max_cipher_reuse.nil? and @total_cipher_uses >= @max_cipher_reuse
+      @logger.debug("max_cipher_reuse["+@max_cipher_reuse.to_s+"] reached, total_cipher_uses = "+@total_cipher_uses.to_s)
+      init_cipher
+    end
+
+    return result
+  end #def crypto
+
+
+  def visit_json(event,parent, myHash)
+    #print("sono dentro visit_json")
+    myHash.each do |key, value|
+      #print("sono dentro il primo ciclo")
+      value.is_a?(Hash) ? visit_json(event,key, value) :
+          if "#{key}" == "#{@field_to_crypt}"
+            printf("the key is #{key}:#{value}\n")
+            crypto(event,"#{key}","#{value}")
+            p = Concurrent::Promise.new{10}
+            event.set(value, result )
+            # else
+            #   printf("#{key}!=#{@field_to_crypt}\n")
+          end
+    end
+  end
+
+
+
   def register
     require 'base64' if @base64
     @semaphore = Mutex.new
@@ -143,73 +243,28 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
      }
   end # def register
 
+#  def crypto_regex(hash)
+#    regex = '^.*iban":\s"(.*)",$'
+
+
   def filter(event)
 
 @semaphore.synchronize {
 
+
     #If decrypt or encrypt fails, we keep it it intact.
     begin
 
-      if (event.get(@source).nil? || event.get(@source).empty?)
-        @logger.debug("Event to filter, event 'source' field: " + @source + " was null(nil) or blank, doing nothing")
-        return
-      end
 
-      #@logger.debug("Event to filter", :event => event)
-      data = event.get(@source)
-      if @mode == "decrypt"
-        data =  Base64.strict_decode64(data) if @base64 == true
 
-        if !@iv_random_length.nil?
-          @random_iv = data.byteslice(0,@iv_random_length)
-          data = data.byteslice(@iv_random_length..data.length)
-        end
+      my_source = event.get(@source)
+      parsed = LogStash::Json.load(my_source)
 
-      end
+      # puts "Let's talk about #{parsed}.\n"
+      # puts "field to crypt #{@field_to_crypt}\n"
 
-      if !@iv_random_length.nil? and @mode == "encrypt"
-        @random_iv = OpenSSL::Random.random_bytes(@iv_random_length)
-      end
 
-      # if iv_random_length is specified, generate a new one
-      # and force the cipher's IV = to the random value
-      if !@iv_random_length.nil?
-        @cipher.iv = @random_iv
-      end
-
-      result = @cipher.update(data) + @cipher.final
-
-      if @mode == "encrypt"
-
-        # if we have a random_iv, prepend that to the crypted result
-        if !@random_iv.nil?
-          result = @random_iv + result
-        end
-
-        result =  Base64.strict_encode64(result).encode("utf-8") if @base64 == true
-      end
-
-    rescue => e
-      @logger.warn("Exception catch on cipher filter", :event => event, :error => e)
-
-      # force a re-initialize on error to be safe
-      init_cipher
-
-    else
-      @total_cipher_uses += 1
-
-      result = result.force_encoding("utf-8") if @mode == "decrypt"
-
-      event.set(@target, result)
-
-      #Is it necessary to add 'if !result.nil?' ? exception have been already catched.
-      #In doubt, I keep it.
-      filter_matched(event) if !result.nil?
-
-      if !@max_cipher_reuse.nil? and @total_cipher_uses >= @max_cipher_reuse
-        @logger.debug("max_cipher_reuse["+@max_cipher_reuse.to_s+"] reached, total_cipher_uses = "+@total_cipher_uses.to_s)
-        init_cipher
-      end
+      visit_json(event,nil, parsed)
 
     end
   }

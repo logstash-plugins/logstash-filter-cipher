@@ -1,5 +1,6 @@
 # 2.1
   - Support for LogStash 5.x and added mutex.
+  - Change source and target from string to array.
 # 2.0.5
   - Depend on logstash-core-plugin-api instead of logstash-core, removing the need to mass update plugins on major releases of logstash
 # 2.0.4
