@@ -9,7 +9,12 @@ require "pry"
 require "ostruct"
 require "concurrent"
 
-
+class Hash
+  def has_rkey?(search)
+    search = Regexp.new(search.to_s) unless search.is_a?(Regexp)
+    !!keys.detect{ |key| key =~ search }
+  end
+end
 
 
 
@@ -22,14 +27,15 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
 
 
-  #the field to perform the partial encryption
+  # the field to perform the partial encryption
   config :partial_encryption, :validate => :boolean, :default => false
 
-  #The parameter that will match the field to crypt based on regex expression
+  # The parameter that will match the field to crypt based on regex expression
   config :regex_exp, :validate => :string, :default => ""
 
-  #the field to perform encryptiong everywhere it appears
+  # the field to perform encryptiong everywhere it appears
   config :field_to_crypt, :validate => :string, :default  => ""
+
   # The field to perform filter
   #
   # Example, to use the @message field (default) :
@@ -233,11 +239,14 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
             printf("the key is #{key}:#{value}\n")
             result = crypto(event,"#{key}","#{value}")
             printf("this is result man: #{result}\n")
+            # printf("Did i set the partial encryption? : #{@partial_encryption}")
             myHash[key] = result
           end
-          if "#{@partial_encryption}" == true
-            regex = /frggg/
+          if @partial_encryption == true
+            printf("this is regex exp : #{regex_exp}\n")
 
+            matched = myHash.select { |key, value| key.to_s.match(@regex_exp) } # match the keys with the regex exp and save them to choises
+            printf("this is matched #{matched}\n")
           end
     end
   end
