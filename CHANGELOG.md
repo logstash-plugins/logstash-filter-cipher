@@ -1,3 +1,6 @@
+# 3.0.0
+  - Mark deprecated iv field obsolete
+
 ## 2.0.7
   - Fix some documentation issues
 

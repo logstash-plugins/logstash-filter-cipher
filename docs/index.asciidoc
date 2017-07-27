@@ -97,29 +97,6 @@ it, Set this parameter to 0
 [source,ruby]
     filter { cipher { cipher_padding => 0 }}
 
-[id="plugins-{type}s-{plugin}-iv"]
-===== `iv`  (DEPRECATED)
-
-  * DEPRECATED WARNING: This configuration item is deprecated and may not be available in future versions.
-  * Value type is <<string,string>>
-  * There is no default value for this setting.
-
-The initialization vector to use (statically hard-coded). For
-a random IV see the iv_random_length property
-
-NOTE: If iv_random_length is set, it takes precedence over any value set for "iv"
-
-The cipher modes CBC, CFB, OFB and CTR all need an "initialization
-vector", or short, IV. ECB mode is the only mode that does not require
-an IV, but there is almost no legitimate use case for this mode
-because of the fact that it does not sufficiently hide plaintext patterns.
-
-For AES algorithms set this to a 16 byte string.
-[source,ruby]
-    filter { cipher { iv => "1234567890123456" }}
-
-Deprecated: Please use `iv_random_length` instead
-
 [id="plugins-{type}s-{plugin}-iv_random_length"]
 ===== `iv_random_length` 
 
