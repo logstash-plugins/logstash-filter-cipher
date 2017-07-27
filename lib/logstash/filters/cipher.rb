@@ -1,8 +1,6 @@
 # encoding: utf-8
 require "logstash/filters/base"
-require "logstash/namespace"
 require "openssl"
-
 
 # This filter parses a source and apply a cipher or decipher before
 # storing it in the target.
@@ -85,29 +83,12 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   #     filter { cipher { cipher_padding => 0 }}
   config :cipher_padding, :validate => :string
 
-  # The initialization vector to use (statically hard-coded). For
-  # a random IV see the iv_random_length property
-  #
-  # NOTE: If iv_random_length is set, it takes precedence over any value set for "iv"
-  #
-  # The cipher modes CBC, CFB, OFB and CTR all need an "initialization
-  # vector", or short, IV. ECB mode is the only mode that does not require
-  # an IV, but there is almost no legitimate use case for this mode
-  # because of the fact that it does not sufficiently hide plaintext patterns.
-  #
-  # For AES algorithms set this to a 16 byte string.
-  # [source,ruby]
-  #     filter { cipher { iv => "1234567890123456" }}
-  #
-  # Deprecated: Please use `iv_random_length` instead
-  config :iv, :validate => :string, :deprecated => "Please use 'iv_random_length'"
+  config :iv, :validate => :string, :obsolete => "Please use 'iv_random_length'"
 
   # Force an random IV to be used per encryption invocation and specify
   # the length of the random IV that will be generated via:
   #
   #       OpenSSL::Random.random_bytes(int_length)
-  #
-  # If iv_random_length is set, it takes precedence over any value set for "iv"
   #
   # Enabling this will force the plugin to generate a unique
   # random IV for each encryption call. This random IV will be prepended to the
@@ -118,7 +99,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # For AES algorithms you can set this to a 16
   # [source,ruby]
   #     filter { cipher { iv_random_length => 16 }}
-  config :iv_random_length, :validate => :number
+  config :iv_random_length, :validate => :number, :required => true
 
   # If this is set the internal Cipher instance will be
   # re-used up to @max_cipher_reuse times before being
@@ -147,32 +128,24 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
     #If decrypt or encrypt fails, we keep it it intact.
     begin
 
-      if (event[@source].nil? || event[@source].empty?)
+      if (event.get(@source).nil? || event.get(@source).empty?)
         @logger.debug("Event to filter, event 'source' field: " + @source + " was null(nil) or blank, doing nothing")
         return
       end
 
       #@logger.debug("Event to filter", :event => event)
-      data = event[@source]
+      data = event.get(@source)
       if @mode == "decrypt"
         data =  Base64.strict_decode64(data) if @base64 == true
-
-        if !@iv_random_length.nil?
-          @random_iv = data.byteslice(0,@iv_random_length)
-          data = data.byteslice(@iv_random_length..data.length)
-        end
-
+        @random_iv = data.byteslice(0,@iv_random_length)
+        data = data.byteslice(@iv_random_length..data.length)
       end
 
-      if !@iv_random_length.nil? and @mode == "encrypt"
+      if @mode == "encrypt"
         @random_iv = OpenSSL::Random.random_bytes(@iv_random_length)
       end
 
-      # if iv_random_length is specified, generate a new one
-      # and force the cipher's IV = to the random value
-      if !@iv_random_length.nil?
-        @cipher.iv = @random_iv
-      end
+      @cipher.iv = @random_iv
 
       result = @cipher.update(data) + @cipher.final
 
@@ -197,7 +170,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
       result = result.force_encoding("utf-8") if @mode == "decrypt"
 
-      event[@target]= result
+      event.set(@target, result)
 
       #Is it necessary to add 'if !result.nil?' ? exception have been already catched.
       #In doubt, I keep it.
@@ -238,18 +211,9 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
     @cipher.key = @key
 
-    if !@iv.nil? and !@iv.empty? and @iv_random_length.nil?
-      @cipher.iv = @iv if @iv
-
-    elsif !@iv_random_length.nil?
-      @logger.debug("iv_random_length is configured, ignoring any statically defined value for 'iv'", :iv_random_length => @iv_random_length)
-    else
-      raise "cipher plugin: either 'iv' or 'iv_random_length' must be configured, but not both; aborting"
-    end
-
     @cipher.padding = @cipher_padding if @cipher_padding
 
-    @logger.debug("Cipher initialisation done", :mode => @mode, :key => @key, :iv => @iv, :iv_random => @iv_random, :cipher_padding => @cipher_padding)
+    @logger.debug("Cipher initialisation done", :mode => @mode, :key => @key, :iv_random_length => @iv_random_length, :iv_random => @iv_random, :cipher_padding => @cipher_padding)
   end # def init_cipher
 
 
