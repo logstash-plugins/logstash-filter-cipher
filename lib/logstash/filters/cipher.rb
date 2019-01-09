@@ -83,8 +83,6 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   #     filter { cipher { cipher_padding => 0 }}
   config :cipher_padding, :validate => :string
 
-  config :iv, :validate => :string, :obsolete => "Please use 'iv_random_length'"
-
   # Force an random IV to be used per encryption invocation and specify
   # the length of the random IV that will be generated via:
   #
