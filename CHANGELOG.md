@@ -1,7 +1,10 @@
+## 4.0.0
+  - Removed obsolete iv field
+
 ## 3.0.1
   - Update gemspec summary
 
-# 3.0.0
+## 3.0.0
   - Mark deprecated iv field obsolete
 
 ## 2.0.7
