@@ -64,7 +64,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # Encrypting or decrypting some data
   #
   # Valid values are encrypt or decrypt
-  config :mode, :validate => :string, :required => true
+  config :mode, :validate => %w(encrypt decrypt), :required => true
 
   # Cipher padding to use. Enables or disables padding.
   #
