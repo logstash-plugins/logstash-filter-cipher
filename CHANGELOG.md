@@ -1,3 +1,8 @@
+## 4.0.1
+  - Added threadsafety; this plugin can now be used in pipelines with more than one worker.
+  - Fixed a potential leak of the configured key into logs; the key is now only included if trace-level logging is enabled.
+  - Fixed an issue where configurations that used invalid `mode` or `algorithm` settings could produce unhelpful error messages.
+
 ## 4.0.0
   - Removed obsolete iv field
 
