@@ -1,5 +1,6 @@
 # encoding: utf-8
 require 'logstash-core'
+require 'logstash/json'
 require "logstash/codecs/base"
 require 'logstash/filters/cipher'
 
