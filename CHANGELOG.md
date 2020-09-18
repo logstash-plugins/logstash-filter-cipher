@@ -3,6 +3,7 @@
   - Fixed a potential leak of the configured key into logs; the key is now only included if trace-level logging is enabled.
   - Fixed an issue where configurations that used invalid `mode` or `algorithm` settings could produce unhelpful error messages.
   - Fixed an issue where a bad payload could cause the plugin to crash; when exceptions are encountered, the offending event will now be tagged with `_cipherfiltererror`.
+  - Improved documentation substantially
 
 ## 4.0.0
   - Removed obsolete iv field
