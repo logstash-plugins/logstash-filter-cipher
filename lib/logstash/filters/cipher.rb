@@ -144,6 +144,9 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
     event.set(@target, result)
     filter_matched(event) unless result.nil?
+  rescue => e
+    @logger.error("An error occurred while #{@mode}ing.", :exception => e.message)
+    event.tag("_cipherfiltererror")
   end
 
   private
