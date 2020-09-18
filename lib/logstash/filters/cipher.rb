@@ -39,7 +39,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   #
   # Please read the following: https://github.com/jruby/jruby/wiki/UnlimitedStrengthCrypto
   #
-  config :key, :validate => :string
+  config :key, :validate => :password
 
   # The key size to pad
   #
@@ -121,9 +121,9 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
       @cipher_reuse_count = Concurrent::ThreadLocalVar.new
     end
 
-    if @key.length != @key_size
+    if @key.value.length != @key_size
       @logger.debug("key length is " + @key.length.to_s + ", padding it to " + @key_size.to_s + " with '" + @key_pad.to_s + "'")
-      @key = @key[0,@key_size].ljust(@key_size,@key_pad)
+      @key = @key.class.new(@key.value[0,@key_size].ljust(@key_size,@key_pad))
     end
   end # def register
 
@@ -252,13 +252,13 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
     cipher.public_send(@mode)
 
-    cipher.key = @key
+    cipher.key = @key.value
 
     cipher.padding = @cipher_padding if @cipher_padding
 
     if @logger.trace?
       @logger.trace("Cipher initialisation done", :mode => @mode,
-                                                  :key => @key,
+                                                  :key => @key.value,
                                                   :iv_random_length => @iv_random_length,
                                                   :iv_random => @iv_random,
                                                   :cipher_padding => @cipher_padding)
