@@ -59,7 +59,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # A list of supported algorithms can be obtained by
   # [source,ruby]
   #     puts OpenSSL::Cipher.ciphers
-  config :algorithm, :validate => :string, :required => true
+  config :algorithm, :validate => OpenSSL::Cipher.ciphers, :required => true
 
   # Encrypting or decrypting some data
   #
