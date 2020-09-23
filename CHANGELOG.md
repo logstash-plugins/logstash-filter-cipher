@@ -1,3 +1,11 @@
+## 4.0.1
+  - General improvements to code and docs [#29](https://github.com/logstash-plugins/logstash-filter-cipher/pull/29)
+    - Fixed threadsafety; this plugin can now be used in pipelines with more than one worker.
+    - Fixed a potential leak of the configured key into logs; the key is now only included if trace-level logging is enabled.
+    - Fixed an issue where configurations that used invalid `mode` or `algorithm` settings could produce unhelpful error messages.
+    - Fixed an issue where a bad payload could cause the plugin to crash; when exceptions are encountered, the offending event will now be tagged with `_cipherfiltererror`.
+    - Improved documentation substantially.
+
 ## 4.0.0
   - Removed obsolete iv field
 
@@ -23,4 +31,3 @@
  - internal: Plugins were updated to follow the new shutdown semantic, this mainly allows Logstash to instruct input plugins to terminate gracefully, 
    instead of using Thread.raise on the plugins' threads. Ref: https://github.com/elastic/logstash/pull/3895
  - internal,deps: Dependency on logstash-core update to 2.0
-

@@ -1,6 +1,7 @@
 # encoding: utf-8
 require "logstash/filters/base"
 require "openssl"
+require "concurrent/atomic/thread_local_var"
 
 # This filter parses a source and apply a cipher or decipher before
 # storing it in the target.
@@ -38,7 +39,7 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   #
   # Please read the following: https://github.com/jruby/jruby/wiki/UnlimitedStrengthCrypto
   #
-  config :key, :validate => :string
+  config :key, :validate => :password
 
   # The key size to pad
   #
@@ -59,12 +60,12 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # A list of supported algorithms can be obtained by
   # [source,ruby]
   #     puts OpenSSL::Cipher.ciphers
-  config :algorithm, :validate => :string, :required => true
+  config :algorithm, :validate => OpenSSL::Cipher.ciphers, :required => true
 
   # Encrypting or decrypting some data
   #
   # Valid values are encrypt or decrypt
-  config :mode, :validate => :string, :required => true
+  config :mode, :validate => %w(encrypt decrypt), :required => true
 
   # Cipher padding to use. Enables or disables padding.
   #
@@ -115,103 +116,158 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
 
   def register
     require 'base64' if @base64
-    init_cipher
+    if cipher_reuse_enabled?
+      @reusable_cipher = Concurrent::ThreadLocalVar.new
+      @cipher_reuse_count = Concurrent::ThreadLocalVar.new
+    end
+
+    if @key.value.length != @key_size
+      @logger.debug("key length is " + @key.length.to_s + ", padding it to " + @key_size.to_s + " with '" + @key_pad.to_s + "'")
+      @key = @key.class.new(@key.value[0,@key_size].ljust(@key_size,@key_pad))
+    end
   end # def register
 
-
   def filter(event)
-    
-
-
-    #If decrypt or encrypt fails, we keep it it intact.
-    begin
-
-      if (event.get(@source).nil? || event.get(@source).empty?)
-        @logger.debug("Event to filter, event 'source' field: " + @source + " was null(nil) or blank, doing nothing")
-        return
-      end
-
-      #@logger.debug("Event to filter", :event => event)
-      data = event.get(@source)
-      if @mode == "decrypt"
-        data =  Base64.strict_decode64(data) if @base64 == true
-        @random_iv = data.byteslice(0,@iv_random_length)
-        data = data.byteslice(@iv_random_length..data.length)
-      end
-
-      if @mode == "encrypt"
-        @random_iv = OpenSSL::Random.random_bytes(@iv_random_length)
-      end
-
-      @cipher.iv = @random_iv
-
-      result = @cipher.update(data) + @cipher.final
-
-      if @mode == "encrypt"
-
-        # if we have a random_iv, prepend that to the crypted result
-        if !@random_iv.nil?
-          result = @random_iv + result
-        end
-
-        result =  Base64.strict_encode64(result).encode("utf-8") if @base64 == true
-      end
-
-    rescue => e
-      @logger.warn("Exception catch on cipher filter", :event => event, :error => e)
-
-      # force a re-initialize on error to be safe
-      init_cipher
-
-    else
-      @total_cipher_uses += 1
-
-      result = result.force_encoding("utf-8") if @mode == "decrypt"
-
-      event.set(@target, result)
-
-      #Is it necessary to add 'if !result.nil?' ? exception have been already catched.
-      #In doubt, I keep it.
-      filter_matched(event) if !result.nil?
-
-      if !@max_cipher_reuse.nil? and @total_cipher_uses >= @max_cipher_reuse
-        @logger.debug("max_cipher_reuse["+@max_cipher_reuse.to_s+"] reached, total_cipher_uses = "+@total_cipher_uses.to_s)
-        init_cipher
-      end
-
+    source = event.get(@source)
+    if (source.nil? || source.empty?)
+      @logger.debug("Event to filter, event 'source' field: " + @source + " was null(nil) or blank, doing nothing")
+      return
     end
-  end # def filter
 
+    result = case(@mode)
+             when "encrypt" then do_encrypt(source)
+             when "decrypt" then do_decrypt(source)
+             else
+               @logger.error("Invalid cipher mode. Valid values are \"encrypt\" or \"decrypt\"", :mode => @mode)
+               raise "Internal Error, aborting."
+             end
+
+    event.set(@target, result)
+    filter_matched(event) unless result.nil?
+  rescue => e
+    @logger.error("An error occurred while #{@mode}ing.", :exception => e.message)
+    event.tag("_cipherfiltererror")
+  end
+
+  private
+
+  def cipher_reuse_enabled?
+    @max_cipher_reuse > 1
+  end
+
+  ##
+  # @param plaintext [String]
+  # @return [String]: ciphertext
+  def do_encrypt(plaintext)
+    with_cipher do |cipher|
+      random_iv = OpenSSL::Random.random_bytes(@iv_random_length)
+      cipher.iv = random_iv
+
+      ciphertext = random_iv + cipher.update(plaintext) + cipher.final
+
+      ciphertext = Base64.strict_encode64(ciphertext).encode("utf-8") if @base64 == true
+
+      ciphertext
+    end
+  end
+
+  ##
+  # @param ciphertext_with_iv [String]
+  # @return [String] plaintext
+  def do_decrypt(ciphertext_with_iv)
+    ciphertext_with_iv = Base64.strict_decode64(ciphertext_with_iv) if @base64 == true
+    encoded_iv = ciphertext_with_iv.byteslice(0..@iv_random_length)
+    ciphertext = ciphertext_with_iv.byteslice(@iv_random_length..-1)
+
+    with_cipher do |cipher|
+      cipher.iv = encoded_iv
+      plaintext = cipher.update(ciphertext) + cipher.final
+      plaintext.force_encoding("UTF-8")
+      plaintext
+    end
+  end
+
+  ##
+  # Returns a new or freshly-reset cipher, bypassing cipher reuse if it is not enabled
+  #
+  # @yieldparam [OpenSSL::Cipher]
+  # @yieldreturn [Object]: the object that this method should return
+  # @return [Object]: the object that was returned by the yielded block
+  def with_cipher
+    return yield(init_cipher) unless cipher_reuse_enabled?
+
+    with_reusable_cipher do |reusable_cipher|
+      yield reusable_cipher
+    end
+  end
+
+  ##
+  # Returns a new or freshly-reset cipher.
+  #
+  # @yieldparam [OpenSSL::Cipher]
+  # @yieldreturn [Object]: the object that this method should return
+  # @return [Object]: the object that was returned by the yielded block
+  def with_reusable_cipher
+    cipher = get_or_init_reusable_cipher
+
+    result = yield(cipher)
+
+    cleanup_reusable_cipher
+
+    return result
+  rescue => e
+    # when an error is encountered, we cannot trust the state of the cipher object.
+    @logger.debug("shared cipher: removing because an exception was raised in #{Thread.current}", :exception => e.message)
+    destroy_reusable_cipher
+    raise
+  end
+
+  def get_or_init_reusable_cipher
+    if @reusable_cipher.value.nil?
+      @logger.debug("shared cipher: initializing for #{Thread.current}")
+      @reusable_cipher.value = init_cipher
+      @cipher_reuse_count.value = 0
+    end
+
+    @cipher_reuse_count.value += 1
+    @reusable_cipher.value
+  end
+
+  def cleanup_reusable_cipher
+    if @cipher_reuse_count.value >= @max_cipher_reuse
+      @logger.debug("shared cipher: max_cipher_reuse[#{@max_cipher_reuse}] reached for #{Thread.current}, total_cipher_uses = #{@cipher_reuse_count.value}") if @logger.debug?
+      destroy_reusable_cipher
+    else
+      @logger.debug("shared cipher: resetting for #{Thread.current}")
+      @reusable_cipher.value.reset
+    end
+  end
+
+  def destroy_reusable_cipher
+    @reusable_cipher.value = nil
+    @cipher_reuse_count.value = 0
+  end
+
+  ##
+  # @return [OpenSSL::Cipher]
   def init_cipher
+    cipher = OpenSSL::Cipher.new(@algorithm)
 
-    if !@cipher.nil?
-      @cipher.reset
-      @cipher = nil
+    cipher.public_send(@mode)
+
+    cipher.key = @key.value
+
+    cipher.padding = @cipher_padding if @cipher_padding
+
+    if @logger.trace?
+      @logger.trace("Cipher initialisation done", :mode => @mode,
+                                                  :key => @key.value,
+                                                  :iv_random_length => @iv_random_length,
+                                                  :iv_random => @iv_random,
+                                                  :cipher_padding => @cipher_padding)
     end
 
-    @cipher = OpenSSL::Cipher.new(@algorithm)
-
-    @total_cipher_uses = 0
-
-    if @mode == "encrypt"
-      @cipher.encrypt
-    elsif @mode == "decrypt"
-      @cipher.decrypt
-    else
-      @logger.error("Invalid cipher mode. Valid values are \"encrypt\" or \"decrypt\"", :mode => @mode)
-      raise "Bad configuration, aborting."
-    end
-
-    if @key.length != @key_size
-      @logger.debug("key length is " + @key.length.to_s + ", padding it to " + @key_size.to_s + " with '" + @key_pad.to_s + "'")
-      @key = @key[0,@key_size].ljust(@key_size,@key_pad)
-    end
-
-    @cipher.key = @key
-
-    @cipher.padding = @cipher_padding if @cipher_padding
-
-    @logger.debug("Cipher initialisation done", :mode => @mode, :key => @key, :iv_random_length => @iv_random_length, :iv_random => @iv_random, :cipher_padding => @cipher_padding)
+    cipher
   end # def init_cipher
 
 
