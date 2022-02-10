@@ -128,13 +128,15 @@ is used. AES Algorithms generally use a 16-byte IV:
 
 The key to use for encryption and decryption operations.
 
-NOTE: If you encounter an error message at runtime containing the following:
+[NOTE]
+============
+If you encounter an error message at runtime containing the following:
 
-"java.security.InvalidKeyException: Illegal key size: possibly you need to install 
-Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files for your JRE"
+`java.security.InvalidKeyException: Illegal key size: possibly you need to install 
+Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files for your JRE`
 
 Please read the following: https://github.com/jruby/jruby/wiki/UnlimitedStrengthCrypto
-
+============
 
 [id="plugins-{type}s-{plugin}-key_pad"]
 ===== `key_pad` 
