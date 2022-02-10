@@ -130,12 +130,10 @@ The key to use for encryption and decryption operations.
 
 [NOTE]
 ============
-If you encounter an error message at runtime containing the following:
+Please read the https://github.com/jruby/jruby/wiki/UnlimitedStrengthCrypto[UnlimitedStrengthCrypto topic] in the https://github.com/jruby/jruby[jruby] github repo if you see a runtime error that resembles:
 
 `java.security.InvalidKeyException: Illegal key size: possibly you need to install 
 Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files for your JRE`
-
-Please read the following: https://github.com/jruby/jruby/wiki/UnlimitedStrengthCrypto
 ============
 
 [id="plugins-{type}s-{plugin}-key_pad"]
