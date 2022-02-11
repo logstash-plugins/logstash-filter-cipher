@@ -1,3 +1,6 @@
+## 4.0.2
+  - [DOC] Fixes "Note" formatting for the Key setting [#30](https://github.com/logstash-plugins/logstash-filter-cipher/pull/30)
+
 ## 4.0.1
   - General improvements to code and docs [#29](https://github.com/logstash-plugins/logstash-filter-cipher/pull/29)
     - Fixed threadsafety; this plugin can now be used in pipelines with more than one worker.
