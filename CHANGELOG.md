@@ -1,5 +1,5 @@
 ## 4.0.3
-  - [Update cipher.rb] Access key length by .value.length as getLength is not exposed. [#33](https://github.com/logstash-plugins/logstash-filter-cipher/pull/33)
+  - Fix: Debug statement doesn't use .value fetch key's value [#33](https://github.com/logstash-plugins/logstash-filter-cipher/pull/33)
 
 ## 4.0.2
   - [DOC] Fixes "Note" formatting for the Key setting [#30](https://github.com/logstash-plugins/logstash-filter-cipher/pull/30)
