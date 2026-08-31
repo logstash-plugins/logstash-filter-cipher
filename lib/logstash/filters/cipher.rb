@@ -41,6 +41,12 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   #
   config :key, :validate => :password
 
+  # Key is base64
+  #
+  # boolean (true or false)
+  # default is false
+  config :key_base64, :validate => :boolean, :default => false
+
   # The key size to pad
   #
   # It depends of the cipher algorithm. If your key doesn't need
@@ -176,17 +182,24 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
   # @return [String] plaintext
   def do_decrypt(ciphertext_with_iv)
     ciphertext_with_iv = Base64.strict_decode64(ciphertext_with_iv) if @base64 == true
-    encoded_iv = ciphertext_with_iv.byteslice(0..@iv_random_length)
-    ciphertext = ciphertext_with_iv.byteslice(@iv_random_length..-1)
-
+    encoded_iv =  ""
+    case(@iv_random_length)
+    when 0
+      ciphertext = ciphertext_with_iv
+    else
+      encoded_iv = ciphertext_with_iv.byteslice(0..@iv_random_length)
+      ciphertext = ciphertext_with_iv.byteslice(@iv_random_length..-1)
+    end
     with_cipher do |cipher|
-      cipher.iv = encoded_iv
-      plaintext = cipher.update(ciphertext) + cipher.final
+      unless encoded_iv.empty? 
+        cipher.iv = encoded_iv
+      end
+      plaintext = cipher.update(ciphertext)
+      plaintext << cipher.final
       plaintext.force_encoding("UTF-8")
       plaintext
     end
   end
-
   ##
   # Returns a new or freshly-reset cipher, bypassing cipher reuse if it is not enabled
   #
@@ -254,14 +267,20 @@ class LogStash::Filters::Cipher < LogStash::Filters::Base
     cipher = OpenSSL::Cipher.new(@algorithm)
 
     cipher.public_send(@mode)
-
-    cipher.key = @key.value
+    
+    if @key_base64 == true
+      key = Base64.strict_decode64(@key.value) 
+    else 
+      key = @key.value
+    end
+    logger.info("Base64: #{@key_base64} Key: #{key}")
+    cipher.key = key
 
     cipher.padding = @cipher_padding if @cipher_padding
 
     if @logger.trace?
       @logger.trace("Cipher initialisation done", :mode => @mode,
-                                                  :key => @key.value,
+                                                  :key => key,
                                                   :iv_random_length => @iv_random_length,
                                                   :iv_random => @iv_random,
                                                   :cipher_padding => @cipher_padding)
